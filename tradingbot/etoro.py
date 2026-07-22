@@ -59,10 +59,21 @@ class EToroBroker:
     def _positions_url(self) -> str:
         return BASE_URL + (ENDPOINT_POSITIONS_DEMO if self.demo else ENDPOINT_POSITIONS)
 
-    def open_position(self, instrument_id: int, amount_usd: float, buy: bool = True) -> dict:
+    def open_position(
+        self,
+        instrument_id: int,
+        amount_usd: float,
+        buy: bool = True,
+        stop_loss_rate: float | None = None,
+        take_profit_rate: float | None = None,
+        leverage: int = 1,
+    ) -> dict:
         """Abre una posición de mercado por un importe en USD.
 
-        instrument_id: el identificador numérico del activo en eToro (no el ticker).
+        instrument_id:   identificador numérico del activo en eToro (no el ticker).
+        stop_loss_rate:  precio al que cerrar en pérdidas (imprescindible en intradía).
+        take_profit_rate: precio al que cerrar en ganancias.
+        leverage:        1 = sin apalancamiento (recomendado al empezar).
         """
         body = {
             "action": "open",
@@ -71,7 +82,14 @@ class EToroBroker:
             "orderType": "mkt",           # orden a mercado
             "amount": round(amount_usd, 2),
             "orderCurrency": "usd",
+            "leverage": int(leverage),
         }
+        # Stop-loss y take-profit: solo se envían si se especifican.
+        if stop_loss_rate is not None:
+            body["stopLossRate"] = round(stop_loss_rate, 4)
+        if take_profit_rate is not None:
+            body["takeProfitRate"] = round(take_profit_rate, 4)
+
         resp = self._session.post(self._orders_url(), json=body, timeout=self.timeout)
         resp.raise_for_status()
         return resp.json()
