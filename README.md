@@ -55,8 +55,8 @@ cp .env.example .env
 python -m tradingbot.screener --symbols TSLA,NVDA,AAPL,MARA,SPY --days 30
 
 # Backtest: ¿la estrategia habría funcionado en este activo?
-python -m tradingbot.backtest BTC/USD
-python -m tradingbot.backtest AAPL --fast 10 --slow 30 --capital 1000
+python -m tradingbot.backtest AAPL --strategy sma
+python -m tradingbot.backtest TSLA --strategy intraday --minutes 5 --capital 1000
 
 # Simulación (NO envía órdenes, solo muestra qué haría)
 python -m tradingbot.runner --once --dry-run
@@ -79,6 +79,22 @@ python -m tradingbot.runner --once --dry-run   # ver el ciclo intradía sin oper
 ```
 
 Cada operación se registra en `logs/trades.csv` para que midas tu ventaja real.
+
+### Métricas del backtest
+
+El backtest intradía simula la salida por stop-loss/take-profit dentro de cada
+vela y devuelve métricas para juzgar si la estrategia tiene ventaja:
+
+| Métrica | Qué significa |
+|---|---|
+| `win_rate_%` | % de operaciones ganadoras |
+| `profit_factor` | dinero ganado ÷ perdido. **>1 = rentable**, <1 = pierde |
+| `max_drawdown_%` | peor caída desde un máximo (el "dolor" máximo) |
+| `retorno_%` | resultado total vs. `buy_hold_%` (comprar y mantener) |
+
+Regla práctica: no pases a dinero real si el `profit_factor` no es
+consistentemente **> 1.3** en varios activos y periodos. Y recuerda: el backtest
+no incluye comisiones ni slippage, así que en real será peor.
 
 Para operar con **dinero real** (solo cuando estés seguro): pon
 `ALPACA_PAPER=false` en `.env` **y** ejecuta con `--live-confirm`. Sin esa
