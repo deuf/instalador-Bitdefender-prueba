@@ -51,3 +51,23 @@ class MarketData:
             df = df.xs(symbol, level="symbol")
 
         return df["close"].astype("float64").tail(limit)
+
+    def get_bars(self, symbol: str, limit: int = 60, timeframe: TimeFrame | None = None) -> pd.DataFrame:
+        """Devuelve un DataFrame con open/high/low/close/volume."""
+        timeframe = timeframe or TimeFrame.Day
+        start = datetime.now(timezone.utc) - timedelta(days=limit * 2 + 10)
+
+        if is_crypto(symbol):
+            request = CryptoBarsRequest(symbol_or_symbols=symbol, timeframe=timeframe, start=start)
+            bars = self._crypto.get_crypto_bars(request)
+        else:
+            request = StockBarsRequest(symbol_or_symbols=symbol, timeframe=timeframe, start=start)
+            bars = self._stock.get_stock_bars(request)
+
+        df = bars.df
+        if df is None or df.empty:
+            return pd.DataFrame()
+        if isinstance(df.index, pd.MultiIndex):
+            df = df.xs(symbol, level="symbol")
+        cols = [c for c in ("open", "high", "low", "close", "volume") if c in df.columns]
+        return df[cols].astype("float64").tail(limit)

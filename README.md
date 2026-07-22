@@ -5,11 +5,13 @@ estrategia de cruce de medias móviles. Ejecuta las órdenes a través de
 [**Alpaca**](https://alpaca.markets), un bróker con API oficial y gratuita que
 soporta **acciones, ETF y cripto** e incluye **paper trading** (dinero ficticio).
 
-> ⚠️ **Sobre eToro:** eToro **no ofrece una API pública de trading** para
-> minoristas. Automatizarlo requeriría simular clicks en su web, lo que **viola
-> sus Términos de Servicio** y puede acabar en el **baneo de tu cuenta**. Por eso
-> este proyecto usa Alpaca, que sí está pensado para automatización. Si más
-> adelante quieres seguir traders de eToro, mira su función nativa de *copy-trading*.
+> ℹ️ **Sobre eToro:** eToro **sí ofrece una API oficial** (portal de
+> desarrolladores en <https://api-portal.etoro.com>), con endpoints REST para
+> abrir/cerrar posiciones y una **cuenta demo virtual**. Este proyecto incluye
+> un adaptador de eToro (`tradingbot/etoro.py`) además del de Alpaca. Alpaca se
+> usa como opción principal porque su *paper trading* y sus datos históricos son
+> gratuitos y muy cómodos para desarrollar y hacer backtest; puedes ejecutar en
+> eToro cuando lo tengas validado.
 
 ---
 
@@ -49,6 +51,9 @@ cp .env.example .env
 ## Uso
 
 ```bash
+# Screener: ¿qué activos son más APTOS para intradía (líquidos + con movimiento)?
+python -m tradingbot.screener --symbols TSLA,NVDA,AAPL,MARA,SPY --days 30
+
 # Backtest: ¿la estrategia habría funcionado en este activo?
 python -m tradingbot.backtest BTC/USD
 python -m tradingbot.backtest AAPL --fast 10 --slow 30 --capital 1000
@@ -76,10 +81,35 @@ tradingbot/
 ├── config.py     Carga y valida la configuración (.env)
 ├── data.py       Descarga precios históricos (acciones/ETF y cripto)
 ├── strategy.py   Lógica de la señal (cruce de medias SMA)
+├── screener.py   Puntúa activos por idoneidad intradía (volatilidad + liquidez)
 ├── broker.py     Ejecuta órdenes en Alpaca (abrir/cerrar)
+├── etoro.py      Adaptador para la API oficial de eToro (demo/real)
 ├── runner.py     Bucle principal: revisa la watchlist y actúa
 └── backtest.py   Prueba la estrategia con datos históricos
 ```
+
+## Trading intradía: qué esperar (lee esto)
+
+Quieres operar **intradía** (abrir y cerrar en el mismo día). Es lo más difícil
+del trading. Datos que debes tener en cuenta:
+
+- **La mayoría de traders intradía minoristas pierden dinero.** Estudios sobre
+  brokers muestran que ~70–85 % terminan en pérdidas. No es opinión, es lo que
+  reflejan los propios avisos de riesgo regulatorios.
+- **Regla PDT (EE. UU.):** para hacer más de 3 operaciones intradía en 5 días
+  con un bróker estadounidense necesitas **≥ 25.000 USD** en la cuenta.
+- **Comisiones y spread** se comen los márgenes pequeños del intradía. En demo no
+  se notan; en real, sí.
+
+Por eso este proyecto **no promete ganancias**. Lo que te da son herramientas
+para trabajar con método:
+
+1. **Screener** → elige el terreno (activos líquidos y con movimiento).
+2. **Backtest** → comprueba si tu estrategia tuvo ventaja en el pasado.
+3. **Paper trading** → valida en tiempo real sin arriesgar.
+4. **Gestión de riesgo** → nunca arriesgar más de un % pequeño por operación.
+
+Solo cuando 2 y 3 sean consistentes durante semanas tiene sentido pasar a real.
 
 **Estrategia (SMA crossover):**
 - **COMPRA** cuando la media rápida cruza por encima de la lenta.
