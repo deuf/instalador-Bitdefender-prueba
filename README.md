@@ -80,12 +80,24 @@ confirmación explícita el bot se niega a arrancar en real, por seguridad.
 tradingbot/
 ├── config.py     Carga y valida la configuración (.env)
 ├── data.py       Descarga precios históricos (acciones/ETF y cripto)
-├── strategy.py   Lógica de la señal (cruce de medias SMA)
+├── strategy.py   Señales: cruce de medias (SMA) y reversión intradía (RSI)
+├── risk.py       Stop-loss / take-profit (ATR) y tamaño de posición por riesgo %
 ├── screener.py   Puntúa activos por idoneidad intradía (volatilidad + liquidez)
+├── trade_log.py  Registra cada operación en CSV para medir tu ventaja real
 ├── broker.py     Ejecuta órdenes en Alpaca (abrir/cerrar)
-├── etoro.py      Adaptador para la API oficial de eToro (demo/real)
+├── etoro.py      Adaptador para la API oficial de eToro (demo/real, con SL/TP)
 ├── runner.py     Bucle principal: revisa la watchlist y actúa
 └── backtest.py   Prueba la estrategia con datos históricos
+
+**Estrategias disponibles:**
+- `sma_crossover_signal` — cruce de medias (tendencia), para velas diarias.
+- `intraday_signal` — reversión a la media con **RSI**, para velas de minutos:
+  compra al salir de sobreventa, cierra al salir de sobrecompra.
+
+**Gestión de riesgo (`risk.py`):**
+- `stop_take_levels` — calcula stop-loss y take-profit según el ATR (volatilidad).
+- `position_notional` — dimensiona la posición para arriesgar solo un % fijo del
+  capital por operación (regla de oro: 1–2 %).
 ```
 
 ## Trading intradía: qué esperar (lee esto)
