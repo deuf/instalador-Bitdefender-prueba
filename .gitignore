@@ -1,0 +1,20 @@
+# Credenciales y configuración local — NUNCA subir claves reales
+.env
+.env.local
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Datos y logs
+*.log
+data/
+logs/
+*.csv
+!examples/*.csv
