@@ -63,6 +63,17 @@ def rsi(closes: pd.Series, period: int = 14) -> pd.Series:
     return result
 
 
+def average_true_range(bars: pd.DataFrame, period: int = 14) -> float:
+    """ATR absoluto (en unidades de precio) a partir de un DataFrame OHLC."""
+    high, low, close = bars["high"], bars["low"], bars["close"]
+    prev_close = close.shift(1)
+    true_range = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1)
+    atr = true_range.rolling(period).mean().iloc[-1]
+    return float(atr) if atr == atr else 0.0  # 0 si NaN
+
+
 def intraday_signal(
     closes: pd.Series,
     period: int = 14,

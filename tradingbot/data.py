@@ -7,12 +7,17 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 from alpaca.data.historical import CryptoHistoricalDataClient, StockHistoricalDataClient
 from alpaca.data.requests import CryptoBarsRequest, StockBarsRequest
-from alpaca.data.timeframe import TimeFrame
+from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 
 def is_crypto(symbol: str) -> bool:
     """Los símbolos de cripto en Alpaca llevan barra: 'BTC/USD'."""
     return "/" in symbol
+
+
+def minute_timeframe(minutes: int) -> TimeFrame:
+    """Construye un TimeFrame de N minutos para datos intradía."""
+    return TimeFrame(minutes, TimeFrameUnit.Minute)
 
 
 class MarketData:

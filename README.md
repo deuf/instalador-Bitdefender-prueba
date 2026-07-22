@@ -68,6 +68,18 @@ python -m tradingbot.runner --once
 python -m tradingbot.runner
 ```
 
+### Modo intradía
+
+Pon `STRATEGY=intraday` en `.env` y el runner cambia a velas de minutos con
+RSI, dimensionando cada posición por riesgo y calculando stop-loss/take-profit:
+
+```bash
+# en .env:  STRATEGY=intraday  INTRADAY_MINUTES=5  RISK_PCT=1.0
+python -m tradingbot.runner --once --dry-run   # ver el ciclo intradía sin operar
+```
+
+Cada operación se registra en `logs/trades.csv` para que midas tu ventaja real.
+
 Para operar con **dinero real** (solo cuando estés seguro): pon
 `ALPACA_PAPER=false` en `.env` **y** ejecuta con `--live-confirm`. Sin esa
 confirmación explícita el bot se niega a arrancar en real, por seguridad.

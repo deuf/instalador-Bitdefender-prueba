@@ -46,8 +46,20 @@ class Config:
     sma_fast: int = field(default_factory=lambda: _get_int("SMA_FAST", 10))
     sma_slow: int = field(default_factory=lambda: _get_int("SMA_SLOW", 30))
 
+    # Estrategia: "sma" (tendencia, velas diarias) o "intraday" (RSI, velas de minutos)
+    strategy: str = field(default_factory=lambda: os.getenv("STRATEGY", "sma").strip().lower())
+    intraday_minutes: int = field(default_factory=lambda: _get_int("INTRADAY_MINUTES", 5))
+    rsi_period: int = field(default_factory=lambda: _get_int("RSI_PERIOD", 14))
+    rsi_oversold: float = field(default_factory=lambda: _get_float("RSI_OVERSOLD", 30.0))
+    rsi_overbought: float = field(default_factory=lambda: _get_float("RSI_OVERBOUGHT", 70.0))
+
     trade_notional_usd: float = field(default_factory=lambda: _get_float("TRADE_NOTIONAL_USD", 100.0))
     max_open_positions: int = field(default_factory=lambda: _get_int("MAX_OPEN_POSITIONS", 4))
+
+    # Gestión de riesgo por operación (solo estrategia intradía)
+    risk_pct: float = field(default_factory=lambda: _get_float("RISK_PCT", 1.0))
+    sl_atr_mult: float = field(default_factory=lambda: _get_float("SL_ATR_MULT", 1.5))
+    tp_atr_mult: float = field(default_factory=lambda: _get_float("TP_ATR_MULT", 2.5))
 
     loop_interval_seconds: int = field(default_factory=lambda: _get_int("LOOP_INTERVAL_SECONDS", 300))
 
@@ -62,6 +74,10 @@ class Config:
             raise ValueError(
                 f"SMA_FAST ({self.sma_fast}) debe ser menor que SMA_SLOW ({self.sma_slow})."
             )
+        if self.strategy not in ("sma", "intraday"):
+            raise ValueError(f"STRATEGY debe ser 'sma' o 'intraday', no '{self.strategy}'.")
+        if not 0 < self.risk_pct <= 100:
+            raise ValueError("RISK_PCT debe estar entre 0 y 100.")
         if self.trade_notional_usd <= 0:
             raise ValueError("TRADE_NOTIONAL_USD debe ser mayor que 0.")
         if self.max_open_positions < 1:
