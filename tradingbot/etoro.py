@@ -24,15 +24,27 @@ BASE_URL = "https://public-api.etoro.com"
 # Rutas de ejecución. La variante /demo/ opera sobre la cuenta virtual.
 ENDPOINT_ORDERS = "/api/v2/trading/execution/orders"
 ENDPOINT_ORDERS_DEMO = "/api/v2/trading/execution/demo/orders"
-# ⚠️ VERIFICAR estas dos contra tu portal oficial antes de usar en real:
+# ⚠️ VERIFICAR estas tres contra tu portal oficial antes de usar en real:
 ENDPOINT_POSITIONS = "/api/v1/trading/portfolio/positions"
 ENDPOINT_POSITIONS_DEMO = "/api/v1/trading/portfolio/demo/positions"
+ENDPOINT_ACCOUNT = "/api/v1/trading/portfolio"
+ENDPOINT_ACCOUNT_DEMO = "/api/v1/trading/demo/portfolio"
 
 
 class EToroBroker:
-    """Cliente mínimo de la API de eToro para abrir/cerrar posiciones."""
+    """Cliente de la API de eToro. Implementa la misma interfaz que Broker
+    (Alpaca): open_long, close, has_position, open_symbols, account_summary,
+    para que el runner lo use de forma intercambiable.
+    """
 
-    def __init__(self, api_key: str, user_key: str, demo: bool = True, timeout: int = 20) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        user_key: str,
+        demo: bool = True,
+        instruments=None,
+        timeout: int = 20,
+    ) -> None:
         if not api_key or not user_key:
             raise ValueError(
                 "Faltan credenciales de eToro (ETORO_API_KEY / ETORO_USER_KEY). "
@@ -40,6 +52,8 @@ class EToroBroker:
             )
         self.demo = demo
         self.timeout = timeout
+        self.instruments = instruments  # instancia de tradingbot.instruments.Instruments
+        self.paper = demo  # alias para compatibilidad con el runner
         self._session = requests.Session()
         self._session.headers.update(
             {
@@ -58,6 +72,16 @@ class EToroBroker:
 
     def _positions_url(self) -> str:
         return BASE_URL + (ENDPOINT_POSITIONS_DEMO if self.demo else ENDPOINT_POSITIONS)
+
+    def _account_url(self) -> str:
+        return BASE_URL + (ENDPOINT_ACCOUNT_DEMO if self.demo else ENDPOINT_ACCOUNT)
+
+    def _require_instruments(self):
+        if self.instruments is None:
+            raise RuntimeError(
+                "EToroBroker necesita el mapa de instrumentos. Configura ETORO_INSTRUMENTS."
+            )
+        return self.instruments
 
     def open_position(
         self,
@@ -113,3 +137,80 @@ class EToroBroker:
         if isinstance(data, dict):
             return data.get("positions", data.get("data", []))
         return data
+
+    # ------------------------------------------------------------------
+    # Interfaz común con el broker de Alpaca (usada por el runner)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _pos_instrument_id(pos: dict):
+        """Extrae el instrumentId de una posición, tolerando distintos nombres."""
+        for key in ("instrumentId", "InstrumentID", "instrument_id"):
+            if key in pos:
+                return int(pos[key])
+        return None
+
+    @staticmethod
+    def _pos_position_id(pos: dict):
+        for key in ("positionId", "PositionID", "position_id", "id"):
+            if key in pos:
+                return pos[key]
+        return None
+
+    def account_summary(self) -> dict:
+        """Resumen de cuenta. ⚠️ Ajusta las claves según responda tu portal."""
+        try:
+            resp = self._session.get(self._account_url(), timeout=self.timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            equity = float(data.get("credit", data.get("equity", 0.0)) or 0.0)
+            return {
+                "equity": equity,
+                "cash": float(data.get("cash", equity) or 0.0),
+                "buying_power": float(data.get("availableCredit", equity) or 0.0),
+                "currency": "USD",
+            }
+        except Exception:
+            # Si el endpoint no está confirmado, no bloqueamos: el sizing usará
+            # este valor como referencia. Ajusta la ruta cuando la tengas.
+            return {"equity": 0.0, "cash": 0.0, "buying_power": 0.0, "currency": "USD"}
+
+    def open_symbols(self) -> set[str]:
+        instruments = self._require_instruments()
+        symbols = set()
+        for pos in self.get_positions():
+            iid = self._pos_instrument_id(pos)
+            sym = instruments.symbol_for(iid) if iid is not None else None
+            if sym:
+                symbols.add(sym)
+        return symbols
+
+    def has_position(self, symbol: str) -> bool:
+        instruments = self._require_instruments()
+        target = instruments.id_for(symbol)
+        return any(self._pos_instrument_id(p) == target for p in self.get_positions())
+
+    def open_long(
+        self,
+        symbol: str,
+        notional_usd: float,
+        stop_loss_rate: float | None = None,
+        take_profit_rate: float | None = None,
+    ) -> str:
+        """Abre una posición larga por importe en USD, mapeando el ticker a instrumentId."""
+        instrument_id = self._require_instruments().id_for(symbol)
+        result = self.open_position(
+            instrument_id, notional_usd, buy=True,
+            stop_loss_rate=stop_loss_rate, take_profit_rate=take_profit_rate,
+        )
+        return str(result.get("orderId", result.get("id", result)))
+
+    def close(self, symbol: str) -> str:
+        """Cierra la posición del símbolo buscando su positionId."""
+        instruments = self._require_instruments()
+        target = instruments.id_for(symbol)
+        for pos in self.get_positions():
+            if self._pos_instrument_id(pos) == target:
+                position_id = self._pos_position_id(pos)
+                result = self.close_position(position_id)
+                return str(result.get("orderId", result.get("id", result)))
+        raise RuntimeError(f"No hay posición abierta de {symbol} para cerrar.")

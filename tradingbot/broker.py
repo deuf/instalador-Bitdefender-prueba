@@ -39,8 +39,19 @@ class Broker:
         )
 
     # --- Órdenes ---
-    def open_long(self, symbol: str, notional_usd: float) -> str:
-        """Abre una posición larga por un importe en dólares (fraccional)."""
+    def open_long(
+        self,
+        symbol: str,
+        notional_usd: float,
+        stop_loss_rate: float | None = None,   # noqa: ARG002 (interfaz común con eToro)
+        take_profit_rate: float | None = None,  # noqa: ARG002
+    ) -> str:
+        """Abre una posición larga por un importe en dólares (fraccional).
+
+        stop_loss_rate/take_profit_rate se aceptan para compartir interfaz con el
+        broker de eToro, pero Alpaca aún no los aplica aquí (requiere bracket
+        orders; es el siguiente paso). Sí se registran en el log de operaciones.
+        """
         tif = TimeInForce.GTC if is_crypto(symbol) else TimeInForce.DAY
         order = MarketOrderRequest(
             symbol=symbol,

@@ -68,6 +68,37 @@ python -m tradingbot.runner --once
 python -m tradingbot.runner
 ```
 
+### Ejecutar en eToro
+
+El bot puede ejecutar las órdenes **en eToro** (no solo en Alpaca). En `.env`:
+
+```ini
+BROKER=etoro
+ETORO_API_KEY=...          # de https://api-portal.etoro.com
+ETORO_USER_KEY=...
+ETORO_DEMO=true            # cuenta virtual (empieza SIEMPRE aquí)
+# eToro usa IDs numéricos, no tickers. Mapea tus símbolos:
+ETORO_INSTRUMENTS=TSLA:1001,NVDA:1002,BTC/USD:100000
+```
+
+```bash
+python -m tradingbot.runner --once --dry-run   # simula el ciclo contra eToro
+python -m tradingbot.runner --once             # opera en tu cuenta DEMO de eToro
+```
+
+Ventaja de eToro: el **stop-loss y take-profit se ejecutan de forma nativa**
+(`stopLossRate`/`takeProfitRate`), así que la protección va en el propio servidor
+de eToro, no depende de que el bot esté encendido.
+
+> **Datos de mercado:** las *señales* se calculan con datos de Alpaca (gratis),
+> aunque ejecutes en eToro. Si prefieres no usar Alpaca ni para datos, se puede
+> cambiar la fuente (eToro tiene su propio feed, o yfinance sin claves).
+>
+> **Rutas por verificar:** la API de eToro tiene la doc completa tras login. El
+> endpoint de *apertura* está confirmado; los de *cierre*, *listado de
+> posiciones* y *cuenta* están implementados pero centralizados en constantes
+> `ENDPOINT_*` de `tradingbot/etoro.py` — ajústalos con lo que veas en tu portal.
+
 ### Modo intradía
 
 Pon `STRATEGY=intraday` en `.env` y el runner cambia a velas de minutos con
@@ -113,7 +144,8 @@ tradingbot/
 ├── screener.py   Puntúa activos por idoneidad intradía (volatilidad + liquidez)
 ├── trade_log.py  Registra cada operación en CSV para medir tu ventaja real
 ├── broker.py     Ejecuta órdenes en Alpaca (abrir/cerrar)
-├── etoro.py      Adaptador para la API oficial de eToro (demo/real, con SL/TP)
+├── etoro.py      Broker de eToro (API oficial, demo/real, SL/TP nativo)
+├── instruments.py Mapa ticker<->instrumentId de eToro
 ├── runner.py     Bucle principal: revisa la watchlist y actúa
 └── backtest.py   Prueba la estrategia con datos históricos
 

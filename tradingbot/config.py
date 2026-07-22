@@ -36,9 +36,20 @@ def _get_list(name: str, default: list[str]) -> list[str]:
 
 @dataclass
 class Config:
+    # Broker de EJECUCIÓN: "etoro" o "alpaca"
+    broker: str = field(default_factory=lambda: os.getenv("BROKER", "alpaca").strip().lower())
+
+    # --- Alpaca (ejecución y/o datos de mercado) ---
     api_key: str = field(default_factory=lambda: os.getenv("ALPACA_API_KEY", ""))
     secret_key: str = field(default_factory=lambda: os.getenv("ALPACA_SECRET_KEY", ""))
     paper: bool = field(default_factory=lambda: _get_bool("ALPACA_PAPER", True))
+
+    # --- eToro (ejecución) ---
+    etoro_api_key: str = field(default_factory=lambda: os.getenv("ETORO_API_KEY", ""))
+    etoro_user_key: str = field(default_factory=lambda: os.getenv("ETORO_USER_KEY", ""))
+    etoro_demo: bool = field(default_factory=lambda: _get_bool("ETORO_DEMO", True))
+    # Mapa "TSLA:1001,BTC/USD:100000" (los instrumentId los ves en tu portal eToro)
+    etoro_instruments: str = field(default_factory=lambda: os.getenv("ETORO_INSTRUMENTS", ""))
 
     watchlist: list[str] = field(
         default_factory=lambda: _get_list("WATCHLIST", ["BTC/USD", "ETH/USD", "AAPL", "SPY"])
@@ -65,10 +76,28 @@ class Config:
 
     def validate(self) -> None:
         """Comprueba que la config tiene sentido antes de arrancar."""
+        if self.broker not in ("etoro", "alpaca"):
+            raise ValueError(f"BROKER debe ser 'etoro' o 'alpaca', no '{self.broker}'.")
+
+        # Claves del broker de EJECUCIÓN elegido.
+        if self.broker == "etoro":
+            if not self.etoro_api_key or not self.etoro_user_key:
+                raise ValueError(
+                    "BROKER=etoro pero faltan ETORO_API_KEY / ETORO_USER_KEY. "
+                    "Solicítalas en https://api-portal.etoro.com y ponlas en tu .env."
+                )
+            if not self.etoro_instruments:
+                raise ValueError(
+                    "BROKER=etoro necesita ETORO_INSTRUMENTS (mapa símbolo:instrumentId), "
+                    "p.ej. 'TSLA:1001,BTC/USD:100000'. Los IDs los ves en tu portal eToro."
+                )
+
+        # Datos de mercado: por ahora provienen de Alpaca (gratis). Requieren claves.
         if not self.api_key or not self.secret_key:
             raise ValueError(
-                "Faltan ALPACA_API_KEY / ALPACA_SECRET_KEY. "
-                "Copia .env.example a .env y rellena tus claves de paper trading."
+                "Faltan ALPACA_API_KEY / ALPACA_SECRET_KEY (se usan para los DATOS de "
+                "mercado, aunque ejecutes en eToro). Son gratis en alpaca.markets. "
+                "Si prefieres NO usar Alpaca ni para datos, dímelo y cambio la fuente."
             )
         if self.sma_fast >= self.sma_slow:
             raise ValueError(
@@ -85,4 +114,12 @@ class Config:
 
     @property
     def mode_label(self) -> str:
-        return "PAPER (demo)" if self.paper else "LIVE (dinero REAL)"
+        if self.broker == "etoro":
+            return "eToro DEMO (virtual)" if self.etoro_demo else "eToro REAL (dinero REAL)"
+        return "Alpaca PAPER (demo)" if self.paper else "Alpaca LIVE (dinero REAL)"
+
+    @property
+    def is_real_money(self) -> bool:
+        return (self.broker == "etoro" and not self.etoro_demo) or (
+            self.broker == "alpaca" and not self.paper
+        )

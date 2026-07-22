@@ -21,6 +21,8 @@ import time
 from .broker import Broker
 from .config import Config
 from .data import MarketData, minute_timeframe
+from .etoro import EToroBroker
+from .instruments import Instruments
 from .risk import position_notional, stop_take_levels
 from .strategy import (
     Signal,
@@ -97,7 +99,8 @@ def run_cycle(cfg, data, broker, dry_run, tlog, account):
                 if dry_run or broker is None:
                     log.info("  -> [DRY-RUN] compraría %s por %.2f USD  %s", symbol, notional, risk_note)
                 else:
-                    oid = broker.open_long(symbol, notional)
+                    # eToro ejecuta el SL/TP de forma nativa; Alpaca los ignora (por ahora).
+                    oid = broker.open_long(symbol, notional, stop_loss_rate=sl, take_profit_rate=tp)
                     open_symbols.add(symbol)
                     log.info("  -> COMPRA enviada (%.2f USD). Orden %s  %s", notional, oid, risk_note)
                 tlog.record(symbol, "buy", "open", price or 0.0, notional,
@@ -133,10 +136,10 @@ def main() -> None:
     cfg.validate()
 
     # Barrera de seguridad: nunca operar en real sin confirmación explícita.
-    if not cfg.paper and not args.live_confirm and not args.dry_run:
+    if cfg.is_real_money and not args.live_confirm and not args.dry_run:
         raise SystemExit(
-            "ABORTADO: ALPACA_PAPER=false (dinero real) pero no pasaste --live-confirm.\n"
-            "Si de verdad quieres operar con dinero real, añade --live-confirm."
+            f"ABORTADO: configuración de DINERO REAL (broker={cfg.broker}) pero no pasaste "
+            "--live-confirm.\nSi de verdad quieres operar con dinero real, añade --live-confirm."
         )
 
     log.info("=" * 60)
@@ -151,8 +154,18 @@ def main() -> None:
                  cfg.sma_fast, cfg.sma_slow, cfg.trade_notional_usd, cfg.max_open_positions)
     log.info("=" * 60)
 
+    # Datos de mercado (señales/backtest): Alpaca (gratis).
     data = MarketData(cfg.api_key, cfg.secret_key)
-    broker = Broker(cfg.api_key, cfg.secret_key, paper=cfg.paper)
+
+    # Broker de EJECUCIÓN según configuración.
+    if cfg.broker == "etoro":
+        instruments = Instruments(cfg.etoro_instruments)
+        broker = EToroBroker(cfg.etoro_api_key, cfg.etoro_user_key,
+                             demo=cfg.etoro_demo, instruments=instruments)
+        log.info("Ejecutando en eToro | instrumentos: %s", ", ".join(instruments.symbols()))
+    else:
+        broker = Broker(cfg.api_key, cfg.secret_key, paper=cfg.paper)
+
     tlog = TradeLog()
 
     account = broker.account_summary()
