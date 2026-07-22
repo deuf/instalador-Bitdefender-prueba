@@ -21,7 +21,7 @@ import argparse
 import pandas as pd
 
 from .config import Config
-from .data import MarketData, minute_timeframe
+from .datasource import make_data_source
 from .metrics import max_drawdown_pct, summarize_trades
 from .risk import position_notional, stop_take_levels
 from .strategy import Signal, average_true_range, intraday_signal
@@ -111,11 +111,11 @@ def main() -> None:
     if args.minutes:
         cfg.intraday_minutes = args.minutes
 
-    data = MarketData(cfg.api_key, cfg.secret_key)
+    data = make_data_source(cfg)
 
     if strategy == "intraday":
         limit = args.limit or 1000
-        bars = data.get_bars(args.symbol, limit=limit, timeframe=minute_timeframe(cfg.intraday_minutes))
+        bars = data.get_bars(args.symbol, limit=limit, interval_minutes=cfg.intraday_minutes)
         if len(bars) < cfg.rsi_period + 5:
             raise SystemExit(f"Datos insuficientes para {args.symbol} ({len(bars)} velas).")
         result = backtest_intraday(bars, cfg, args.capital)

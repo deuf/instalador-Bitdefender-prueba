@@ -6,7 +6,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
 
-from .data import is_crypto
+from .symbols import is_crypto
 
 
 class Broker:

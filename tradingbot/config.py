@@ -37,7 +37,10 @@ def _get_list(name: str, default: list[str]) -> list[str]:
 @dataclass
 class Config:
     # Broker de EJECUCIÓN: "etoro" o "alpaca"
-    broker: str = field(default_factory=lambda: os.getenv("BROKER", "alpaca").strip().lower())
+    broker: str = field(default_factory=lambda: os.getenv("BROKER", "etoro").strip().lower())
+    # Fuente de DATOS: "yfinance" (sin claves), "alpaca" o "etoro".
+    # Vacío = se elige solo (yfinance si ejecutas en eToro; alpaca si en Alpaca).
+    data_source: str = field(default_factory=lambda: os.getenv("DATA_SOURCE", "").strip().lower())
 
     # --- Alpaca (ejecución y/o datos de mercado) ---
     api_key: str = field(default_factory=lambda: os.getenv("ALPACA_API_KEY", ""))
@@ -74,10 +77,17 @@ class Config:
 
     loop_interval_seconds: int = field(default_factory=lambda: _get_int("LOOP_INTERVAL_SECONDS", 300))
 
+    def __post_init__(self) -> None:
+        # Fuente de datos por defecto: yfinance salvo que ejecutes en Alpaca.
+        if not self.data_source:
+            self.data_source = "alpaca" if self.broker == "alpaca" else "yfinance"
+
     def validate(self) -> None:
         """Comprueba que la config tiene sentido antes de arrancar."""
         if self.broker not in ("etoro", "alpaca"):
             raise ValueError(f"BROKER debe ser 'etoro' o 'alpaca', no '{self.broker}'.")
+        if self.data_source not in ("yfinance", "alpaca", "etoro"):
+            raise ValueError(f"DATA_SOURCE debe ser 'yfinance', 'alpaca' o 'etoro', no '{self.data_source}'.")
 
         # Claves del broker de EJECUCIÓN elegido.
         if self.broker == "etoro":
@@ -92,12 +102,13 @@ class Config:
                     "p.ej. 'TSLA:1001,BTC/USD:100000'. Los IDs los ves en tu portal eToro."
                 )
 
-        # Datos de mercado: por ahora provienen de Alpaca (gratis). Requieren claves.
-        if not self.api_key or not self.secret_key:
+        # Claves de Alpaca SOLO si de verdad usas Alpaca (ejecución o datos).
+        if (self.broker == "alpaca" or self.data_source == "alpaca") and (
+            not self.api_key or not self.secret_key
+        ):
             raise ValueError(
-                "Faltan ALPACA_API_KEY / ALPACA_SECRET_KEY (se usan para los DATOS de "
-                "mercado, aunque ejecutes en eToro). Son gratis en alpaca.markets. "
-                "Si prefieres NO usar Alpaca ni para datos, dímelo y cambio la fuente."
+                "Estás usando Alpaca (ejecución o datos) pero faltan ALPACA_API_KEY / "
+                "ALPACA_SECRET_KEY. Son gratis en alpaca.markets."
             )
         if self.sma_fast >= self.sma_slow:
             raise ValueError(

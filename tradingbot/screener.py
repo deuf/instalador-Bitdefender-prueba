@@ -25,7 +25,7 @@ import argparse
 import pandas as pd
 
 from .config import Config
-from .data import MarketData
+from .datasource import make_data_source
 
 
 def _atr_pct(bars: pd.DataFrame, period: int = 14) -> float:
@@ -86,7 +86,7 @@ def main() -> None:
     cfg.validate()
     symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else cfg.watchlist
 
-    data = MarketData(cfg.api_key, cfg.secret_key)
+    data = make_data_source(cfg)
     rows = []
     for sym in symbols:
         try:

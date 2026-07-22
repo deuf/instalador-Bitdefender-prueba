@@ -1,17 +1,14 @@
 # Bot de Trading Automatizado (acciones · ETF · cripto)
 
-Bot en Python que **abre y cierra posiciones automáticamente** según una
-estrategia de cruce de medias móviles. Ejecuta las órdenes a través de
-[**Alpaca**](https://alpaca.markets), un bróker con API oficial y gratuita que
-soporta **acciones, ETF y cripto** e incluye **paper trading** (dinero ficticio).
+Bot en Python que **abre y cierra posiciones automáticamente** (acciones, ETF y
+cripto) según una estrategia técnica. **Ejecuta las órdenes en
+[eToro](https://api-portal.etoro.com)** a través de su API oficial, con **cuenta
+demo virtual** y stop-loss/take-profit nativos.
 
-> ℹ️ **Sobre eToro:** eToro **sí ofrece una API oficial** (portal de
-> desarrolladores en <https://api-portal.etoro.com>), con endpoints REST para
-> abrir/cerrar posiciones y una **cuenta demo virtual**. Este proyecto incluye
-> un adaptador de eToro (`tradingbot/etoro.py`) además del de Alpaca. Alpaca se
-> usa como opción principal porque su *paper trading* y sus datos históricos son
-> gratuitos y muy cómodos para desarrollar y hacer backtest; puedes ejecutar en
-> eToro cuando lo tengas validado.
+> ℹ️ **Sin Alpaca necesaria.** Los datos de mercado para las señales se
+> descargan por defecto de **Yahoo Finance (yfinance), sin ninguna clave**. Solo
+> necesitas tus credenciales de eToro para ejecutar. (Opcionalmente puedes usar
+> Alpaca como broker o fuente de datos, pero es totalmente opcional.)
 
 ---
 
@@ -90,9 +87,10 @@ Ventaja de eToro: el **stop-loss y take-profit se ejecutan de forma nativa**
 (`stopLossRate`/`takeProfitRate`), así que la protección va en el propio servidor
 de eToro, no depende de que el bot esté encendido.
 
-> **Datos de mercado:** las *señales* se calculan con datos de Alpaca (gratis),
-> aunque ejecutes en eToro. Si prefieres no usar Alpaca ni para datos, se puede
-> cambiar la fuente (eToro tiene su propio feed, o yfinance sin claves).
+> **Datos de mercado:** por defecto se usan datos de **Yahoo Finance
+> (yfinance), SIN claves** — no hace falta Alpaca para nada. Puedes cambiar la
+> fuente con `DATA_SOURCE` a `etoro` (feed nativo, requiere la ruta de velas de
+> tu portal) o `alpaca` (requiere claves de Alpaca).
 >
 > **Rutas por verificar:** la API de eToro tiene la doc completa tras login. El
 > endpoint de *apertura* está confirmado; los de *cierre*, *listado de
@@ -138,7 +136,10 @@ confirmación explícita el bot se niega a arrancar en real, por seguridad.
 ```
 tradingbot/
 ├── config.py     Carga y valida la configuración (.env)
-├── data.py       Descarga precios históricos (acciones/ETF y cripto)
+├── datasource.py Selector de fuente de datos (yfinance / eToro / Alpaca)
+├── data_yf.py    Datos de Yahoo Finance (SIN claves, por defecto)
+├── data_etoro.py Datos del feed nativo de eToro
+├── data.py       Datos de Alpaca (opcional)
 ├── strategy.py   Señales: cruce de medias (SMA) y reversión intradía (RSI)
 ├── risk.py       Stop-loss / take-profit (ATR) y tamaño de posición por riesgo %
 ├── screener.py   Puntúa activos por idoneidad intradía (volatilidad + liquidez)

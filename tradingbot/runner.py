@@ -18,11 +18,8 @@ import argparse
 import logging
 import time
 
-from .broker import Broker
 from .config import Config
-from .data import MarketData, minute_timeframe
-from .etoro import EToroBroker
-from .instruments import Instruments
+from .datasource import make_data_source
 from .risk import position_notional, stop_take_levels
 from .strategy import (
     Signal,
@@ -43,11 +40,11 @@ def _setup_logging() -> None:
     )
 
 
-def _compute_signal(cfg: Config, data: MarketData, symbol: str):
+def _compute_signal(cfg: Config, data, symbol: str):
     """Devuelve (señal, precio_actual, atr). atr solo para intradía."""
     if cfg.strategy == "intraday":
-        tf = minute_timeframe(cfg.intraday_minutes)
-        bars = data.get_bars(symbol, limit=max(cfg.rsi_period * 4, 60), timeframe=tf)
+        bars = data.get_bars(symbol, limit=max(cfg.rsi_period * 4, 60),
+                             interval_minutes=cfg.intraday_minutes)
         if bars.empty:
             return Signal.HOLD, None, 0.0
         signal = intraday_signal(bars["close"], cfg.rsi_period, cfg.rsi_oversold, cfg.rsi_overbought)
@@ -154,16 +151,20 @@ def main() -> None:
                  cfg.sma_fast, cfg.sma_slow, cfg.trade_notional_usd, cfg.max_open_positions)
     log.info("=" * 60)
 
-    # Datos de mercado (señales/backtest): Alpaca (gratis).
-    data = MarketData(cfg.api_key, cfg.secret_key)
+    # Fuente de datos de mercado (según DATA_SOURCE; por defecto yfinance).
+    data = make_data_source(cfg)
+    log.info("Fuente de datos: %s", cfg.data_source)
 
-    # Broker de EJECUCIÓN según configuración.
+    # Broker de EJECUCIÓN según configuración (imports perezosos).
     if cfg.broker == "etoro":
+        from .etoro import EToroBroker
+        from .instruments import Instruments
         instruments = Instruments(cfg.etoro_instruments)
         broker = EToroBroker(cfg.etoro_api_key, cfg.etoro_user_key,
                              demo=cfg.etoro_demo, instruments=instruments)
         log.info("Ejecutando en eToro | instrumentos: %s", ", ".join(instruments.symbols()))
     else:
+        from .broker import Broker
         broker = Broker(cfg.api_key, cfg.secret_key, paper=cfg.paper)
 
     tlog = TradeLog()

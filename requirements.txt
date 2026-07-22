@@ -1,4 +1,8 @@
-alpaca-py>=0.33.0
+# Núcleo (necesario siempre)
 pandas>=2.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
+yfinance>=0.2.40          # datos de mercado SIN claves (por defecto)
+
+# Opcional: solo si DATA_SOURCE=alpaca o BROKER=alpaca
+# alpaca-py>=0.33.0

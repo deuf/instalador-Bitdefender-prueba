@@ -58,14 +58,13 @@ pip install -r requirements.txt
 
 ---
 
-## Paso 4 — Conseguir claves GRATIS (para los datos de mercado)
+## Paso 4 — (Datos de mercado: SIN claves)
 
-El bot necesita datos de precios. La fuente gratuita es **Alpaca** (no hace
-falta operar ni poner dinero, solo leer datos):
+Los datos de precios se descargan de **Yahoo Finance**, que **no necesita
+ninguna clave**. No tienes que hacer nada en este paso. 🎉
 
-1. Crea cuenta en <https://alpaca.markets>.
-2. Cambia a **"Paper Trading"** (arriba).
-3. **Generate New Keys** → copia la *API Key* y la *Secret Key*.
+(Si algún día quieres usar el feed nativo de eToro para los datos, se puede
+configurar `DATA_SOURCE=etoro`, pero para empezar `yfinance` va perfecto.)
 
 ---
 
@@ -77,28 +76,36 @@ falta operar ni poner dinero, solo leer datos):
    cp .env.example .env          # en Windows: copy .env.example .env
    ```
 
-2. Abre `.env` con el Bloc de notas y pega tus claves. Para la **primera
-   prueba**, deja lo más sencillo posible:
+2. Para **probar la estrategia sin cuentas ni claves** (solo backtest y
+   simulación), con esto basta:
 
    ```ini
-   ALPACA_API_KEY=tu_clave_de_alpaca
-   ALPACA_SECRET_KEY=tu_secret_de_alpaca
-   ALPACA_PAPER=true
-   BROKER=alpaca
+   DATA_SOURCE=yfinance
    STRATEGY=intraday
+   ```
+
+3. Para **ejecutar en eToro** (cuando tengas acceso de desarrollador), añade:
+
+   ```ini
+   BROKER=etoro
+   ETORO_API_KEY=tu_clave
+   ETORO_USER_KEY=tu_user_key
+   ETORO_DEMO=true
+   ETORO_INSTRUMENTS=TSLA:1001,BTC/USD:100000
    ```
 
 ---
 
 ## Paso 6 — ¡Ejecutar! (empieza SIEMPRE por aquí)
 
-### a) Ver si la estrategia funciona en el pasado (no arriesga nada)
+### a) Ver si la estrategia funciona en el pasado (no arriesga nada, SIN claves)
 
 ```bash
 python -m tradingbot.backtest AAPL --strategy intraday
 ```
 
 Verás métricas como `profit_factor` y `retorno_%`. **>1 = rentable.**
+Esto funciona ya, sin ninguna cuenta, porque los datos son de Yahoo Finance.
 
 ### b) Ver qué activos son mejores para intradía
 
@@ -156,6 +163,8 @@ Y ejecuta igual: `python -m tradingbot.runner --once --dry-run` primero.
 - `command not found: python` → usa `python3`.
 - `No module named tradingbot` → asegúrate de estar **dentro de la carpeta**
   del proyecto al ejecutar los comandos.
-- `Faltan ALPACA_API_KEY...` → revisa que el `.env` tiene tus claves y está en
-  la carpeta del proyecto.
+- `Falta 'yfinance'...` → ejecuta `pip install -r requirements.txt`.
+- `BROKER=etoro pero faltan ETORO_API_KEY...` → si aún no tienes eToro, usa
+  `BROKER=alpaca` no; mejor prueba primero solo el backtest (paso 6a), que no
+  necesita broker. Para el runner en eToro necesitas las claves de eToro.
 - Cualquier otro error: cópiamelo tal cual y te ayudo.
