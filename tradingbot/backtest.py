@@ -106,7 +106,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = Config()
-    cfg.validate()
+    cfg.validate(require_broker=False)  # el backtest solo usa datos, no opera
     strategy = args.strategy or cfg.strategy
     if args.minutes:
         cfg.intraday_minutes = args.minutes

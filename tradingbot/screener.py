@@ -83,7 +83,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = Config()
-    cfg.validate()
+    cfg.validate(require_broker=False)  # el screener solo usa datos, no opera
     symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else cfg.watchlist
 
     data = make_data_source(cfg)

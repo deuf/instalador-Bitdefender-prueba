@@ -82,15 +82,19 @@ class Config:
         if not self.data_source:
             self.data_source = "alpaca" if self.broker == "alpaca" else "yfinance"
 
-    def validate(self) -> None:
-        """Comprueba que la config tiene sentido antes de arrancar."""
+    def validate(self, require_broker: bool = True) -> None:
+        """Comprueba que la config tiene sentido antes de arrancar.
+
+        require_broker=False para herramientas que SOLO usan datos (backtest,
+        screener): no exigen las claves del broker de ejecución.
+        """
         if self.broker not in ("etoro", "alpaca"):
             raise ValueError(f"BROKER debe ser 'etoro' o 'alpaca', no '{self.broker}'.")
         if self.data_source not in ("yfinance", "alpaca", "etoro"):
             raise ValueError(f"DATA_SOURCE debe ser 'yfinance', 'alpaca' o 'etoro', no '{self.data_source}'.")
 
-        # Claves del broker de EJECUCIÓN elegido.
-        if self.broker == "etoro":
+        # Claves del broker de EJECUCIÓN elegido (solo si se va a operar).
+        if require_broker and self.broker == "etoro":
             if not self.etoro_api_key or not self.etoro_user_key:
                 raise ValueError(
                     "BROKER=etoro pero faltan ETORO_API_KEY / ETORO_USER_KEY. "
@@ -103,9 +107,8 @@ class Config:
                 )
 
         # Claves de Alpaca SOLO si de verdad usas Alpaca (ejecución o datos).
-        if (self.broker == "alpaca" or self.data_source == "alpaca") and (
-            not self.api_key or not self.secret_key
-        ):
+        needs_alpaca = self.data_source == "alpaca" or (require_broker and self.broker == "alpaca")
+        if needs_alpaca and (not self.api_key or not self.secret_key):
             raise ValueError(
                 "Estás usando Alpaca (ejecución o datos) pero faltan ALPACA_API_KEY / "
                 "ALPACA_SECRET_KEY. Son gratis en alpaca.markets."
