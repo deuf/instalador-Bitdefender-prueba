@@ -77,6 +77,10 @@ class Config:
 
     loop_interval_seconds: int = field(default_factory=lambda: _get_int("LOOP_INTERVAL_SECONDS", 300))
 
+    # Análisis de noticias con IA (Claude). Requiere ANTHROPIC_API_KEY.
+    use_ai_news: bool = field(default_factory=lambda: _get_bool("USE_AI_NEWS", False))
+    ai_model: str = field(default_factory=lambda: os.getenv("AI_MODEL", "claude-opus-4-8"))
+
     def __post_init__(self) -> None:
         # Fuente de datos por defecto: yfinance salvo que ejecutes en Alpaca.
         if not self.data_source:

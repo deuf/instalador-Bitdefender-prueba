@@ -71,8 +71,12 @@ def fetch_news_titles(symbol: str, limit: int = 10) -> list[str]:
     return titles
 
 
-def analyze(symbol: str, data) -> dict:
-    """Analiza un símbolo y devuelve métricas + veredicto."""
+def analyze(symbol: str, data, use_ai: bool = False, ai_model: str | None = None) -> dict:
+    """Analiza un símbolo y devuelve métricas + veredicto.
+
+    use_ai=True usa Claude para el sentimiento de noticias (más preciso) en vez
+    del léxico básico. Si falla (sin clave o sin librería), cae al método básico.
+    """
     bars = data.get_bars(symbol, limit=300, interval_minutes=None)  # ~diario
     if bars.empty or len(bars) < 60:
         return {"symbol": symbol, "error": "datos insuficientes"}
@@ -127,14 +131,26 @@ def analyze(symbol: str, data) -> dict:
     # 7) Volatilidad (informativa, no puntúa dirección)
     atr_pct = average_true_range(bars, 14) / price * 100 if price else 0.0
 
-    # 8) Noticias (sentimiento básico) — pesa la mitad por ser crudo
+    # 8) Noticias
     titles = fetch_news_titles(symbol)
-    sent_score, pos_n, neg_n = score_sentiment(titles)
-    news_pts = 0
     if titles:
+        sent_score = None
+        detail = ""
+        if use_ai:
+            # Sentimiento con IA (Claude): lee y entiende los titulares.
+            try:
+                from .ai_analyst import analyze_news
+                ai = analyze_news(symbol, titles, model=ai_model)
+                sent_score = float(ai["sentimiento"])
+                detail = f"IA: {ai['etiqueta']} — {ai['resumen'][:70]}"
+            except Exception as exc:  # sin clave/librería o error de red -> método básico
+                detail = f"(IA no disponible: {str(exc)[:40]}) "
+        if sent_score is None:
+            # Método básico: conteo de palabras.
+            sent_score, pos_n, neg_n = score_sentiment(titles)
+            detail = detail + f"léxico +{pos_n}/-{neg_n}, sentimiento {sent_score:+.2f}"
         news_pts = 1 if sent_score > 0.2 else (-1 if sent_score < -0.2 else 0)
-        factors.append((f"Noticias ({len(titles)} titulares, +{pos_n}/-{neg_n})", news_pts,
-                        f"sentimiento {sent_score:+.2f}"))
+        factors.append((f"Noticias ({len(titles)} titulares)", news_pts, detail))
 
     # --- Veredicto combinado ---
     total = sum(pts for _, pts, _ in factors)
@@ -179,9 +195,11 @@ def main() -> None:
     cfg.validate(require_broker=False)
     data = make_data_source(cfg)
 
+    if cfg.use_ai_news:
+        print(f"(Sentimiento de noticias con IA: {cfg.ai_model})")
     for symbol in args.symbols:
         try:
-            _print_report(analyze(symbol, data))
+            _print_report(analyze(symbol, data, use_ai=cfg.use_ai_news, ai_model=cfg.ai_model))
         except Exception as exc:
             print(f"\n{symbol}: error -> {exc}\n")
 

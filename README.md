@@ -51,6 +51,10 @@ cp .env.example .env
 # Analizador multifactor: técnica + noticias -> COMPRAR/MANTENER/VENDER
 python -m tradingbot.analyzer AAPL TSLA NVDA
 
+# Sentimiento de noticias con IA (Claude) — requiere ANTHROPIC_API_KEY
+#   en .env: USE_AI_NEWS=true  (el analizador lo usa automáticamente)
+python -m tradingbot.ai_analyst AAPL       # probar solo el análisis de noticias
+
 # Screener: ¿qué activos son más APTOS para intradía (líquidos + con movimiento)?
 python -m tradingbot.screener --symbols TSLA,NVDA,AAPL,MARA,SPY --days 30
 
@@ -144,6 +148,7 @@ tradingbot/
 ├── data_etoro.py Datos del feed nativo de eToro
 ├── data.py       Datos de Alpaca (opcional)
 ├── analyzer.py   Análisis multifactor (tendencia+RSI+MACD+volumen+noticias)
+├── ai_analyst.py Sentimiento de noticias con IA (Claude) — opcional
 ├── strategy.py   Señales: cruce de medias (SMA) y reversión intradía (RSI)
 ├── risk.py       Stop-loss / take-profit (ATR) y tamaño de posición por riesgo %
 ├── screener.py   Puntúa activos por idoneidad intradía (volatilidad + liquidez)

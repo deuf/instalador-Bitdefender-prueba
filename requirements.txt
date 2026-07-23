@@ -6,3 +6,6 @@ yfinance>=0.2.40          # datos de mercado SIN claves (por defecto)
 
 # Opcional: solo si DATA_SOURCE=alpaca o BROKER=alpaca
 # alpaca-py>=0.33.0
+
+# Opcional: solo si USE_AI_NEWS=true (sentimiento de noticias con Claude)
+# anthropic>=0.69.0
