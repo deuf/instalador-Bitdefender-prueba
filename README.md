@@ -48,6 +48,9 @@ cp .env.example .env
 ## Uso
 
 ```bash
+# Analizador multifactor: técnica + noticias -> COMPRAR/MANTENER/VENDER
+python -m tradingbot.analyzer AAPL TSLA NVDA
+
 # Screener: ¿qué activos son más APTOS para intradía (líquidos + con movimiento)?
 python -m tradingbot.screener --symbols TSLA,NVDA,AAPL,MARA,SPY --days 30
 
@@ -140,6 +143,7 @@ tradingbot/
 ├── data_yf.py    Datos de Yahoo Finance (SIN claves, por defecto)
 ├── data_etoro.py Datos del feed nativo de eToro
 ├── data.py       Datos de Alpaca (opcional)
+├── analyzer.py   Análisis multifactor (tendencia+RSI+MACD+volumen+noticias)
 ├── strategy.py   Señales: cruce de medias (SMA) y reversión intradía (RSI)
 ├── risk.py       Stop-loss / take-profit (ATR) y tamaño de posición por riesgo %
 ├── screener.py   Puntúa activos por idoneidad intradía (volatilidad + liquidez)
