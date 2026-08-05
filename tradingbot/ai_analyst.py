@@ -20,27 +20,30 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 # Modelo por defecto. Puedes cambiarlo con AI_MODEL (p.ej. claude-haiku-4-5 para
 # abaratar, claude-opus-4-8 para máxima calidad).
 DEFAULT_MODEL = os.getenv("AI_MODEL", "claude-opus-4-8")
 
-# Esquema de salida estructurada: obliga a Claude a responder en este formato.
-_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "sentimiento": {"type": "number", "description": "de -1 (muy negativo) a 1 (muy positivo)"},
-        "etiqueta": {"type": "string", "enum": ["positivo", "neutral", "negativo"]},
-        "resumen": {"type": "string", "description": "una o dos frases explicando el porqué"},
-        "riesgos": {"type": "array", "items": {"type": "string"}},
-    },
-    "required": ["sentimiento", "etiqueta", "resumen", "riesgos"],
-    "additionalProperties": False,
-}
+
+def _parse_json(text: str) -> dict:
+    """Extrae el objeto JSON de la respuesta, tolerando texto alrededor."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            raise
+        return json.loads(match.group(0))
 
 
 def analyze_news(symbol: str, titles: list[str], model: str | None = None) -> dict | None:
-    """Analiza titulares con Claude. Devuelve dict con sentimiento/etiqueta/resumen/riesgos."""
+    """Analiza titulares con Claude. Devuelve dict con sentimiento/etiqueta/resumen/riesgos.
+
+    Pide la respuesta en JSON directamente (compatible con cualquier versión del
+    SDK) en vez de usar parámetros de salida estructurada que pueden variar.
+    """
     if not titles:
         return None
     try:
@@ -53,19 +56,22 @@ def analyze_news(symbol: str, titles: list[str], model: str | None = None) -> di
     prompt = (
         f"Eres un analista financiero. Evalúa el sentimiento de mercado de estos "
         f"titulares recientes sobre {symbol}, desde el punto de vista de un inversor. "
-        f"Recuerda que una noticia suele estar ya descontada por el mercado cuando se "
-        f"publica, así que valora el impacto NETO esperado, no solo el tono.\n\n"
-        f"Titulares:\n{headlines}"
+        f"OJO: algunos titulares pueden no ser sobre {symbol}; ignóralos. Recuerda que "
+        f"una noticia suele estar ya descontada por el mercado cuando se publica, así "
+        f"que valora el impacto NETO esperado, no solo el tono.\n\n"
+        f"Titulares:\n{headlines}\n\n"
+        f"Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, con esta forma:\n"
+        f'{{"sentimiento": <número de -1 a 1>, "etiqueta": "positivo|neutral|negativo", '
+        f'"resumen": "<una o dos frases>", "riesgos": ["<riesgo>", ...]}}'
     )
     resp = client.messages.create(
         model=model or DEFAULT_MODEL,
         max_tokens=1024,
-        system="Responde de forma objetiva y concisa, solo con el análisis pedido.",
+        system="Eres un analista financiero objetivo. Respondes solo con JSON válido.",
         messages=[{"role": "user", "content": prompt}],
-        output_config={"format": {"type": "json_schema", "schema": _SCHEMA}},
     )
     text = next(b.text for b in resp.content if b.type == "text")
-    return json.loads(text)
+    return _parse_json(text)
 
 
 def main() -> None:
